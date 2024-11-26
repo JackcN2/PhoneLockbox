@@ -3,8 +3,11 @@
 #include <Keypad.h>
 #include <Servo.h>
 #include <dht.h>
+#include <Wire.h>
 dht DHT;
 #define DHT11_PIN A5
+#define device_address 0x12
+#define signal_pin 13
 Servo myservo;
 
 // Variables
@@ -20,6 +23,7 @@ float minTemp = 10.0;
 float maxHumid = 85.0;
 float minHumid = 15.0;
 int sensChk = 1;
+const int buzzer = 11;
 
 // keypad setup
 const byte ROWS = 4;     //defines the amount of rows on the keypad
@@ -48,16 +52,15 @@ void setup() {
   myservo.attach(10);  
   myservo.write(pos2); 
   pinMode(sensBuzzer, OUTPUT);
+  pinMode(signal_pin, OUTPUT);
+  digitalWrite (signal_pin, LOW);
 }
 
 void loop() {
 
-//checks if the sensor shoould be on
-if (sensChk == 1){}
-
 //checks the output from the sensor
+if (sensChk == 1){}
 float chk = DHT.read11(DHT11_PIN);
-
 //checks if the  output is less or more than the min/max temp/humidity
 if(DHT.temperature >= maxTemp or DHT.temperature <= minTemp or DHT.humidity >= maxHumid or DHT.humidity <= minHumid){
   myserco.write(pos1);
