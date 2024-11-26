@@ -1,5 +1,9 @@
 //0x10 is my address
 
+#include <Wire.h>
+#define device_address 0x10
+#define signal_pin 13
+
 byte button =8;
 unsigned long startTime;
 unsigned long endTime;
@@ -9,6 +13,8 @@ byte timerRunning;
 const int buzzer = 3; //buzzer to arduino pin 9
 
 void setup(){
+  pinMode(signal_pin, OUTPUT);
+  digitalWrite(signal_pin, LOW);
 for (int i = 0; i < 4; i++)//Use a for loop, to not have to initiate all the pins   by hand
 {
 pinMode(i, OUTPUT);
