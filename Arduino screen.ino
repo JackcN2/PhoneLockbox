@@ -35,8 +35,24 @@ void count(){
  lcd.print("Box Open");       // Display "Box Open"
 
     // Send a message to the Serial Monitor
-    Serial.println("Box Open");
+   data_to_send = 2;              // Set data to send
+    data_ready = true;              // Flag data as ready
+    digitalWrite(signal_pin, HIGH); // Signal the Raspberry Pi
+    delay(100);                     // Allow time for detection
+    digitalWrite(signal_pin, LOW);  // Reset signal line
+  }
 }
+
+
+void sendData() {
+  if (data_ready) {
+    Wire.write(data_to_send);  // Send data over I2C
+    data_ready = false;        // Reset data ready flag
+  } else {
+    Wire.write(0);  // Send default if no data
+  }
+}
+
 
 void setup() {
  // Set up the LCD's number of columns and rows (16x2):
@@ -58,5 +74,7 @@ void loop() {
     char reset = Serial.read();
 
     }
+
+
 
 
