@@ -1,9 +1,10 @@
-// includes libraries
+// Includes libraries
 #include <Key.h>
 #include <Keypad.h>
 #include <Servo.h>
 #include <dht.h>
 #include <Wire.h>
+
 dht DHT;
 #define DHT11_PIN A5
 #define device_address 0x12
@@ -25,103 +26,105 @@ float minHumid = 15.0;
 int sensChk = 1;
 const int buzzer = 11;
 
-// keypad setup
-const byte ROWS = 4;     //defines the amount of rows on the keypad
-const byte COLS = 4;     // defines the amount of columns on the keypad
+// Keypad setup
+const byte ROWS = 4;     // Defines the number of rows on the keypad
+const byte COLS = 4;     // Defines the number of columns on the keypad
 
-//defines what each button on the keypad is
+// Defines what each button on the keypad is
 char hexaKeys[ROWS][COLS] = {
-  {'1','2','3','A'},
-  {'4','5','6','B'},
-  {'7','8','9','C'},
-  {'*','0','#','D'}
+  {'1', '2', '3', 'A'},
+  {'4', '5', '6', 'B'},
+  {'7', '8', '9', 'C'},
+  {'*', '0', '#', 'D'}
 };
 
-//connects the keypad rows and columns to specific pins on the arduino
-byte rowPins [ROWS] = {9, 8, 7, 6};
-byte colPins [COLS] = {5, 4, 3, 2};
+// Connects the keypad rows and columns to specific pins on the Arduino
+byte rowPins[ROWS] = {9, 8, 7, 6};
+byte colPins[COLS] = {5, 4, 3, 2};
 
-//
 Keypad customKeypad = Keypad(makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS);
 
-
+char receivedData; // Variable to store data received via I2C
 
 void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(9600);
+  // Initialize Servo
   myservo.attach(10);  
   myservo.write(pos2); 
-  pinMode(sensBuzzer, OUTPUT);
+
+  pinMode(buzzer, OUTPUT);
   pinMode(signal_pin, OUTPUT);
-  digitalWrite (signal_pin, LOW);
+  digitalWrite(signal_pin, LOW);
+
+  // Start I2C communication as a slave
+  Wire.begin(device_address);
+  Wire.onReceive(receiveEvent); // Handle incoming data
 }
 
 void loop() {
+  // Sensor checking logic
+  if (sensChk == 1) {
+    float chk = DHT.read11(DHT11_PIN);
 
-//checks the output from the sensor
-if (sensChk == 1){}
-float chk = DHT.read11(DHT11_PIN);
-//checks if the  output is less or more than the min/max temp/humidity
-if(DHT.temperature >= maxTemp or DHT.temperature <= minTemp or DHT.humidity >= maxHumid or DHT.humidity <= minHumid){
-  myserco.write(pos1);
-  tone(sensBuzzer, 4000);
-  delay(500);
-  noTone(sensBuzzer);
+    // Check if temperature or humidity is outside the allowed range
+    if (DHT.temperature >= maxTemp || DHT.temperature <= minTemp || DHT.humidity >= maxHumid || DHT.humidity <= minHumid) {
+      myservo.write(pos1);
+      tone(buzzer, 4000);
+      delay(500);
+      noTone(buzzer);
+    }
+    delay(1150); // Short delay to not overload the sensor
+  }
+
+  // Process received I2C command
+  if (receivedData == 'E') {
+    myservo.write(pos1); // Move servo to open position
+    sensChk = 0;
+  } else if (receivedData == 'R') {
+    myservo.write(pos2); // Move servo back to closed position
+    kypd = ("");
+    lock = 3;
+    sensChk = 1;
+  }
+
+  // Keypad functionality
+  if (kypd != "off") { // Ensure keypad is active
+    char customKey = customKeypad.getKey();
+    if (customKey) {
+      pWordChk = customKey;
+      if (pWordChk != "*") {
+        entpWord += customKey; // Add last input to password
+      }
+
+      if (pWordChk == "*") { // Check if password entry is completed
+        if (entpWord == pWord) {
+          sendToMaster("K"); // Notify master of success
+          entpWord = ("");
+          pWordChk = ("");
+          kypd = ("off"); // Deactivate keypad
+        } else {
+          entpWord = ("");
+          pWordChk = ("");
+          lock -= 1;
+        }
+
+        if (lock == -1) {
+          kypd = ("off"); // Deactivate keypad after too many failed attempts
+        }
+      }
+    }
+  }
 }
-delay(1150); //Short delay to not overload the sensor
+
+// Function to handle incoming I2C data
+void receiveEvent(int bytes) {
+  while (Wire.available()) {
+    receivedData = Wire.read(); // Read the received byte
+  }
 }
-// put your main code here, to run repeatedly:
-  if (Serial.available() > 0) {     // checks if data is available
-    char input = Serial.read();     // reads serial monitor for input
 
-    if (input == 'E') {  
-      myservo.write(pos1);          // moves servo to open position 
-      Serial.println("E");
-      sensChk = 0;
-    }
-
-    else if (input == 'R') {  
-      myservo.write(pos2);          // moves servo back to closed position
-      Serial.println("R");
-      kypd = ("");
-      lock = 3;
-      sensChk = 1;
-    }
-  }
- 
- if (kypd != "off"){                // makes sure that the keypad is not off
-  char customKey = customKeypad.getKey();
-  
-  if (customKey) { 
-    Serial.println(customKey);      // prints the key pressed
-    pWordChk = (customKey);
-    
-    if (pWordChk == "*"){           // makes sure * is not added to the password
-    }
-    
-    else {
-      entpWord += (customKey);      // adds last input to password
-    }
-  }
-  
-  if (pWordChk == "*"){             // checks if you entered * to end the password
-      if (entpWord == pWord){       // checks if password is corect
-        Serial.print("K"); 
-        Serial.print("\n");
-        entpWord = ("");            // resets entered password for next time
-        pWordChk = ("");            // resets the check to end the password
-        kypd = ("off");             // turns the keypad off
-      }
-      
-      else {
-        entpWord = ("");      
-        pWordChk = (""); 
-        lock -= 1; 
-      }
-      
-      if (lock == -1){
-        kypd = ("off");           // turns the keypad off if you try too many times
-      }
-  }
-  }
+// Function to send data to the I2C master
+void sendToMaster(String message) {
+  Wire.beginTransmission(device_address);
+  Wire.write(message.c_str()); // Send string data as bytes
+  Wire.endTransmission();
 }
