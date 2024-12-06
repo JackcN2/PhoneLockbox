@@ -4,9 +4,9 @@
 #include <dht.h>
 #include <Wire.h>
 
-// DHT sensor setup
-dht DHT;
-#define DHT11_PIN A5
+#define DHTPIN A5       // Define the pin used to connect the sensor
+#define DHTTYPE DHT11  // Define the sensor type
+DHT dht(DHTPIN, DHTTYPE);  // Create a DHT object
 #define device_address 0x12
 #define signal_pin 13
 Servo myservo;
@@ -64,10 +64,11 @@ void setup() {
 void loop() {
   // Sensor checking logic
   if (sensChk == 1) {
-    float chk = DHT.read11(DHT11_PIN);
+    float t = dht.readTemperature();
+    float h = dht.readHumidity();
 
     // Check if temperature or humidity is outside the allowed range
-    if (DHT.temperature >= maxTemp || DHT.temperature <= minTemp || DHT.humidity >= maxHumid || DHT.humidity <= minHumid) {
+    if (t >= maxTemp || t <= minTemp || h >= maxHumid || h <= minHumid) {
       myservo.write(pos1);  // Open servo
       tone(buzzer, 4000);
       delay(500);
