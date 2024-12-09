@@ -3,9 +3,10 @@
 #include <DHT.h>
 #include <Wire.h>
 
+// Libraries for DHT and Servo
 dht DHT;
 #define DHT11_PIN A5
-#define device_address 0x12
+#define device_address 0x12 // Slave I2C address
 #define signal_pin 13
 Servo myservo;
 
@@ -24,73 +25,65 @@ float minHumid = 15.0;
 int sensChk = 1;
 const int buzzer = 11;
 
-char dataToSend = '0'; // Variable to store the data to send to the master
+char dataToSend = '0'; // Data to send to the master
+char receivedData;     // Data received from the master
 
 // Keypad setup
-const byte ROWS = 4;     // Defines the number of rows on the keypad
-const byte COLS = 4;     // Defines the number of columns on the keypad
-
-// Defines what each button on the keypad is
+const byte ROWS = 4;
+const byte COLS = 4;
 char hexaKeys[ROWS][COLS] = {
-  {'1', '2', '3', 'A'},
-  {'4', '5', '6', 'B'},
-  {'7', '8', '9', 'C'},
-  {'*', '0', '#', 'D'}
+    {'1', '2', '3', 'A'},
+    {'4', '5', '6', 'B'},
+    {'7', '8', '9', 'C'},
+    {'*', '0', '#', 'D'}
 };
-
-// Connects the keypad rows and columns to specific pins on the Arduino
 byte rowPins[ROWS] = {9, 8, 7, 6};
 byte colPins[COLS] = {5, 4, 3, 2};
-
 Keypad customKeypad = Keypad(makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS);
 
-char receivedData; // Variable to store data received via I2C
-
 void setup() {
-  // Initialize Servo
+  Serial.begin(9600); // Debugging output
   myservo.attach(10);  
-  myservo.write(pos2); 
+  myservo.write(pos2);
 
   pinMode(buzzer, OUTPUT);
   pinMode(signal_pin, OUTPUT);
   digitalWrite(signal_pin, LOW);
 
-  // Start I2C communication as a slave
-  Wire.begin(device_address);
-  Wire.onReceive(receiveEvent); // Handle incoming data
-  Wire.onRequest(requestEvent); // Load data into response buffer for the master
+  Wire.begin(device_address);       // Initialize I2C as a slave
+  Wire.onReceive(receiveEvent);     // Callback for receiving data
+  Wire.onRequest(requestEvent);     // Callback for sending data
 }
 
 void loop() {
-  // Sensor checking logic
+  // Sensor logic
   if (sensChk == 1) {
     float chk = DHT.read11(DHT11_PIN);
-
-    // Check if temperature or humidity is outside the allowed range
-    if (DHT.temperature >= maxTemp || DHT.temperature <= minTemp || DHT.humidity >= maxHumid || DHT.humidity <= minHumid) {
+    if (DHT.temperature >= maxTemp || DHT.temperature <= minTemp || 
+        DHT.humidity >= maxHumid || DHT.humidity <= minHumid) {
       myservo.write(pos1);
       tone(buzzer, 4000);
       delay(500);
       noTone(buzzer);
     }
-    delay(1150); // Short delay to not overload the sensor
+    delay(1150);
   }
 
-  // Keypad functionality
-  if (kypd == "on") { // Ensure keypad is active
+  // Keypad logic
+  if (kypd == "on") {
     char customKey = customKeypad.getKey();
     if (customKey) {
       pWordChk = customKey;
       if (pWordChk != "*") {
-        entpWord += customKey; // Add last input to password
+        entpWord += customKey;
       }
 
-      if (pWordChk == "*") { // Check if password entry is completed
+      if (pWordChk == "*") {
         if (entpWord == pWord) {
           dataToSend = 'K'; // Notify master of success
           entpWord = "";
           pWordChk = "";
-          kypd = "off"; // Deactivate keypad
+          kypd = "off";
         } else {
           entpWord = "";
           pWordChk = "";
@@ -98,32 +91,33 @@ void loop() {
         }
 
         if (lock == -1) {
-          kypd = "off"; // Deactivate keypad after too many failed attempts
+          kypd = "off";
         }
       }
     }
   }
 }
 
-// Function to handle incoming I2C data
 void receiveEvent(int bytes) {
   while (Wire.available()) {
-    receivedData = Wire.read(); // Read the received byte
+    receivedData = Wire.read();
   }
+  Serial.print("Received via I2C: ");
+  Serial.println(receivedData);
 
-  // Handle received data
   if (receivedData == 'E') {
-    myservo.write(pos1); // Move servo to open position
+    myservo.write(pos1); 
     sensChk = 0;
   } else if (receivedData == 'R') {
-    myservo.write(pos2); // Move servo back to closed position
+    myservo.write(pos2); 
     kypd = "on";
     lock = 3;
     sensChk = 1;
   }
 }
 
-// Function to respond to I2C master requests
 void requestEvent() {
-  Wire.write(dataToSend); // Send the current value of `dataToSend` to the master
+  Serial.print("Master requested data: Sending ");
+  Serial.println(dataToSend);
+  Wire.write(dataToSend); // Send the value of `dataToSend` to the master
 }
