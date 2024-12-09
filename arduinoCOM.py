@@ -70,18 +70,13 @@ def communicate_with_slaves():
 
                     elif received_data == ord('X'):  # 'X' to reset everything
                         print(f"Received 'X' from {name} (address {hex(address)})")
-                        if rsend == 1:
-                            rsend = 0
-                            beep = 0
-                            auth = 0
-                        else:
-                            for _, addr in slave_addresses.items():
-                                send_to_slave(addr, ord('R'))  # Send 'R' to all slaves
-                            rsend = 0
-                            auth = 0
-                            rf_auth = 0
-                            keypad_auth = 0
-                            beep = 0
+                        rsend = 0
+                        auth = 0
+                        rf_auth = 0
+                        keypad_auth = 0
+                        beep = 0
+                        for _, addr in slave_addresses.items():
+                            send_to_slave(addr, ord('R'))  # Send 'R' to all slaves
 
                     if auth == 1:
                         for _, addr in slave_addresses.items():
@@ -98,11 +93,21 @@ def communicate_with_slaves():
 
 # Main function
 def main():
-    communication_thread = threading.Thread(target=communicate_with_slaves)
-    communication_thread.start()
+    try:
+        communication_thread = threading.Thread(target=communicate_with_slaves)
+        communication_thread.daemon = True  # Ensure thread exits when main program exits
+        communication_thread.start()
 
-    # Keep the main thread alive
-    communication_thread.join()
+        # Keep the main thread running to handle any future tasks
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\nProgram terminated by user.")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+    finally:
+        bus.close()
+        print("I2C bus closed. Program ended.")
 
 if __name__ == "__main__":
     main()
