@@ -58,7 +58,7 @@ void setup() {
 
 void loop() {
   // Sensor logic
-    if (sensChk == false) {
+    if (sensChk == 1) {
       float t = dht.readTemperature();
       float h = dht.readHumidity();
   
