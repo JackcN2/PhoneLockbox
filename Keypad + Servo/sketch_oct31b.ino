@@ -24,6 +24,8 @@ float minHumid = 15.0;
 int sensChk = 1;
 const int buzzer = 11;
 
+char dataToSend = '0'; // Variable to store the data to send to the master
+
 // Keypad setup
 const byte ROWS = 4;     // Defines the number of rows on the keypad
 const byte COLS = 4;     // Defines the number of columns on the keypad
@@ -56,7 +58,7 @@ void setup() {
   // Start I2C communication as a slave
   Wire.begin(device_address);
   Wire.onReceive(receiveEvent); // Handle incoming data
-  Wire.onRequest(requestEvent); // Respond to master requests
+  Wire.onRequest(requestEvent); // Load data into response buffer for the master
 }
 
 void loop() {
@@ -85,7 +87,7 @@ void loop() {
 
       if (pWordChk == "*") { // Check if password entry is completed
         if (entpWord == pWord) {
-          sendToMaster('K'); // Notify master of success
+          dataToSend = 'K'; // Notify master of success
           entpWord = "";
           pWordChk = "";
           kypd = "off"; // Deactivate keypad
@@ -121,14 +123,7 @@ void receiveEvent(int bytes) {
   }
 }
 
-// Function to send data to the I2C master
-void sendToMaster(char message) {
-  Wire.beginTransmission(device_address);
-  Wire.write(message); // Send single byte
-  Wire.endTransmission();
-}
-
 // Function to respond to I2C master requests
 void requestEvent() {
-  // Optionally, implement if master requests specific status or data from this slave
+  Wire.write(dataToSend); // Send the current value of `dataToSend` to the master
 }
