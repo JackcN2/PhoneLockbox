@@ -4,8 +4,9 @@
 #include <Wire.h>
 
 // Libraries for DHT and Servo
-dht DHT;
-#define DHT11_PIN A5
+#define DHTPIN A5       // Define the pin used to connect the sensor
+#define DHTTYPE DHT11  // Define the sensor type
+DHT dht(DHTPIN, DHTTYPE);  // Create a DHT objectA5
 #define device_address 0x12 // Slave I2C address
 #define signal_pin 13
 Servo myservo;
@@ -57,17 +58,19 @@ void setup() {
 
 void loop() {
   // Sensor logic
-  if (sensChk == 1) {
-    float chk = DHT.read11(DHT11_PIN);
-    if (DHT.temperature >= maxTemp || DHT.temperature <= minTemp || 
-        DHT.humidity >= maxHumid || DHT.humidity <= minHumid) {
-      myservo.write(pos1);
-      tone(buzzer, 4000);
-      delay(500);
-      noTone(buzzer);
+    if (sensChk == false) {
+      float t = dht.readTemperature();
+      float h = dht.readHumidity();
+  
+      // Check if temperature or humidity is outside the allowed range
+      if (t >= maxTemp || t <= minTemp || h >= maxHumid || h <= minHumid) {
+        myservo.write(pos1);
+        tone(buzzer, 4000);
+        delay(500);
+        noTone(buzzer);
+      }
+      delay(1150); // Short delay to not overload the sensor
     }
-    delay(1150);
-  }
 
   // Keypad logic
   if (kypd == "on") {
