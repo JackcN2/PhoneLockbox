@@ -1,6 +1,7 @@
 import smbus2
 import threading
 import time
+import RPi.GPIO as GPIO
 
 print("Program started")
 
@@ -20,6 +21,10 @@ slave_addresses = {
 }  # Add additional devices if needed
 bus = smbus2.SMBus(I2C_BUS)
 
+# GPIO setup
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(13, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # GPIO 13 as input with pull-down resistor
+
 # Function to send a byte of data to a slave
 def send_to_slave(slave_address, data):
     try:
@@ -38,13 +43,17 @@ def read_from_slave(slave_address):
         print(f"Error reading data from slave at address {hex(slave_address)}: {e}")
         return None
 
-# Function to handle communication with all slaves
-def communicate_with_slaves():
+# Function to handle communication with the specific slave
+def poll_slave_when_gpio_high():
     global auth, keypad_auth, rf_auth, rsend, beep
 
+    slave_address = slave_addresses["Keypad"]
+
     while True:
-        for name, address in slave_addresses.items():
-            received_data = read_from_slave(address)
+        # Check if GPIO 13 is HIGH
+        if GPIO.input(13) == GPIO.HIGH:
+            print("GPIO 13 is HIGH. Polling the Keypad module.")
+            received_data = read_from_slave(slave_address)
 
             if received_data is not None:
                 with auth_lock:
@@ -52,49 +61,44 @@ def communicate_with_slaves():
                         auth = 0
                         keypad_auth = 0
                         rf_auth = 0
-                        print(f"Received 'E' from {name} (address {hex(address)}), auth reset to 0.")
-                        for _, addr in slave_addresses.items():
-                            send_to_slave(addr, ord('1'))  # Send '1' to all slaves
+                        print(f"Received 'E' from Keypad (address {hex(slave_address)}), auth reset to 0.")
+                        send_to_slave(slave_address, ord('1'))  # Send '1' to Keypad
 
                     elif received_data == ord('K') and keypad_auth == 0:  # 'K' for keypad authentication
                         auth += 1
                         keypad_auth = 1
-                        print(f"Received 'K' from {name} (address {hex(address)}), auth incremented to {auth}")
-                        for _, addr in slave_addresses.items():
-                            send_to_slave(addr, ord('V'))  # Send 'V' to all slaves
+                        print(f"Received 'K' from Keypad (address {hex(slave_address)}), auth incremented to {auth}")
+                        send_to_slave(slave_address, ord('V'))  # Send 'V' to Keypad
 
                     elif received_data == ord('M') and rf_auth == 0:  # 'M' for RF authentication
                         auth += 1
                         rf_auth = 1
-                        print(f"Received 'M' from {name} (address {hex(address)}), auth incremented to {auth}")
+                        print(f"Received 'M' from Keypad (address {hex(slave_address)}), auth incremented to {auth}")
 
                     elif received_data == ord('X'):  # 'X' to reset everything
-                        print(f"Received 'X' from {name} (address {hex(address)})")
+                        print(f"Received 'X' from Keypad (address {hex(slave_address)})")
                         rsend = 0
                         auth = 0
                         rf_auth = 0
                         keypad_auth = 0
                         beep = 0
-                        for _, addr in slave_addresses.items():
-                            send_to_slave(addr, ord('R'))  # Send 'R' to all slaves
+                        send_to_slave(slave_address, ord('R'))  # Send 'R' to Keypad
 
                     if auth == 1:
-                        for _, addr in slave_addresses.items():
-                            send_to_slave(addr, ord('1'))  # Send '1' to all slaves
-                        print(f"Auth is 1, sent '1' to all slaves.")
+                        send_to_slave(slave_address, ord('1'))  # Send '1' to Keypad
+                        print(f"Auth is 1, sent '1' to Keypad.")
 
                     if auth == 2 and beep == 0:
                         beep = 1
-                        print("Auth reached 2, sending 'E' to all slaves.")
-                        for _, addr in slave_addresses.items():
-                            send_to_slave(addr, ord('E'))  # Send 'E' to all slaves
+                        print("Auth reached 2, sending 'E' to Keypad.")
+                        send_to_slave(slave_address, ord('E'))  # Send 'E' to Keypad
 
-        time.sleep(0.1)  # Short delay to prevent overloading the I2C bus
+        time.sleep(0.1)  # Short delay to prevent rapid polling
 
 # Main function
 def main():
     try:
-        communication_thread = threading.Thread(target=communicate_with_slaves)
+        communication_thread = threading.Thread(target=poll_slave_when_gpio_high)
         communication_thread.daemon = True  # Ensure thread exits when main program exits
         communication_thread.start()
 
@@ -106,8 +110,9 @@ def main():
     except Exception as e:
         print(f"Unexpected error: {e}")
     finally:
+        GPIO.cleanup()
         bus.close()
-        print("I2C bus closed. Program ended.")
+        print("I2C bus closed and GPIO cleaned up. Program ended.")
 
 if __name__ == "__main__":
     main()
