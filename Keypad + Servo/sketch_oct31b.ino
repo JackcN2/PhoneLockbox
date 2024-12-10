@@ -1,6 +1,12 @@
 #include <Keypad.h>
 #include <Servo.h>
 #include <Wire.h>
+#include <DHT.h>
+
+//DHT Setup
+#define DHTPIN A5       // Define the pin used to connect the sensor
+#define DHTTYPE DHT11  // Define the sensor type
+DHT dht(DHTPIN, DHTTYPE);  // Create a DHT object
 
 // I2C address
 #define DEVICE_ADDRESS 0x12
@@ -56,6 +62,22 @@ void setup() {
 }
 
 void loop() {
+
+// Sensor checking logic
+  if (sensChk == 1) {
+    float t = dht.readTemperature();
+    float h = dht.readHumidity();
+
+    // Check if temperature or humidity is outside the allowed range
+    if (t >= maxTemp || t <= minTemp || h >= maxHumid || h <= minHumid) {
+      myservo.write(pos1);
+      tone(buzzer, 4000);
+      delay(500);
+      noTone(buzzer);
+    }
+    delay(1150); // Short delay to not overload the sensor
+  }
+    
   if (keypadEnabled) {
     char customKey = customKeypad.getKey();
     if (customKey) {
