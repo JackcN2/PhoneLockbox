@@ -39,7 +39,7 @@ void count() {
   lcd.print("Box Open");  // Display "Box Open"
 
   // Signal the master that the countdown is complete
-  data_to_send = 2;              // Set data to send
+  data_to_send = V;              // Set data to send
   data_ready = true;             // Flag data as ready
   digitalWrite(signal_pin, HIGH); // Signal using the output pin
   delay(100);                     // Allow time for detection
