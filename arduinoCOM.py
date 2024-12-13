@@ -2,13 +2,14 @@ import smbus2
 import threading
 import time
 import RPi.GPIO as GPIO
-
+import pyserial
 print("Program started")
 
 # Global variables to track authentication and states
 auth = 0
 keypad_auth = 0  # To track keypad authentication
 rf_auth = 0  # To track RF authentication
+finger_auth = 0 # For fingerprint auth
 auth_lock = threading.Lock()  # Lock to safely update shared variables across threads
 beep = 0
 rsend = 0
@@ -17,14 +18,18 @@ rsend = 0
 I2C_BUS = 1  # I2C bus number (typically 1 on Raspberry Pi)
 slave_addresses = {
     "LCD": 0x11,         # Address of the LCD module
-    "Keypad": 0x12,      # Address of the Keypad module
+    "Keypad": 0x12,
+    "RFID": 0x13,
+    "Panel": 0x14,
+    
+    # Address of the Keypad module
 }  # Add additional devices if needed
 bus = smbus2.SMBus(I2C_BUS)
 
 # GPIO setup
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(13, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # GPIO 13 as input with pull-down resistor
-
+GPIO.setup(13, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # GPIO 13 as input with pull-down resistor (for slave siginaling)
+GPIO.setup(23, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)   #For the fingerprint 
 # Function to send a byte of data to a slave
 def send_to_slave(slave_address, data):
     try:
@@ -45,53 +50,66 @@ def read_from_slave(slave_address):
 
 # Function to handle communication with the specific slave
 def poll_slave_when_gpio_high():
-    global auth, keypad_auth, rf_auth, rsend, beep
-
-    slave_address = slave_addresses["Keypad"]
+    global auth, keypad_auth, rf_auth, rsend, beep1, beep2
 
     while True:
-        # Check if GPIO 13 is HIGH
+        # Check auth states and execute any needed actions
+        if auth == 1 and beep1 == 0:
+            beep1 = 1
+            send_to_slave(slave_addresses["Panel"], ord('1'))  # Beeps the panel
+            print(f"Auth is 1, sent '1' to Control panel.")
+
+        if auth == 2 and beep2 == 0:
+            beep2 = 1
+            print("Auth reached 2, Opening Box and sending '2' to control panel")
+            send_to_slave(slave_addresses["Panel"], ord('2'))  # Beeps the panel
+            send_to_slave(slave_addresses["Keypad"], ord('E'))  # Opens the box
+
+        with auth_lock:
+            if GPIO.input(23) == GPIO.HIGH:
+                if finger_auth == 0:
+                    finger_auth = 1
+                    auth +=1
+                
+            
+        # Check if GPIO 13 (Polling line) is HIGH
         if GPIO.input(13) == GPIO.HIGH:
-            print("GPIO 13 is HIGH. Polling the Keypad module.")
-            received_data = read_from_slave(slave_address)
+            print("GPIO 13 is HIGH. Polling all modules.")
+            for name, slave_address in slave_addresses.items():
+                received_data = read_from_slave(slave_address)
 
-            if received_data is not None:
-                with auth_lock:
-                    if received_data == ord('E'):  # 'E' to reset auth
-                        auth = 0
-                        keypad_auth = 0
-                        rf_auth = 0
-                        print(f"Received 'E' from Keypad (address {hex(slave_address)}), auth reset to 0.")
-                        send_to_slave(slave_address, ord('1'))  # Send '1' to Keypad
+                if received_data is not None:
+                    with auth_lock:
+                        # Screen function
+                        if received_data == ord('V'):  # V from screen to auto open (also from the panel in emergencies)
+                            auth = 2
 
-                    elif received_data == ord('K') and keypad_auth == 0:  # 'K' for keypad authentication
-                        auth += 1
-                        keypad_auth = 1
-                        print(f"Received 'K' from Keypad (address {hex(slave_address)}), auth incremented to {auth}")
-                        send_to_slave(slave_address, ord('V'))  # Send 'V' to Keypad
+                        # Keypad function
+                        elif received_data == ord('K') and keypad_auth == 0:  # 'K' for keypad authentication
+                            auth += 1
+                            keypad_auth = 1
+                            print(f"Received 'K' from {name} (address {hex(slave_address)}), auth incremented to {auth}")
 
-                    elif received_data == ord('M') and rf_auth == 0:  # 'M' for RF authentication
-                        auth += 1
-                        rf_auth = 1
-                        print(f"Received 'M' from Keypad (address {hex(slave_address)}), auth incremented to {auth}")
+                        # RFID function
+                        elif received_data == ord('M') and rf_auth == 0:  # 'M' for RF authentication
+                            auth += 1
+                            rf_auth = 1
+                            print(f"Received 'M' from {name} (address {hex(slave_address)}), auth incremented to {auth}")
 
-                    elif received_data == ord('X'):  # 'X' to reset everything
-                        print(f"Received 'X' from Keypad (address {hex(slave_address)})")
-                        rsend = 0
-                        auth = 0
-                        rf_auth = 0
-                        keypad_auth = 0
-                        beep = 0
-                        send_to_slave(slave_address, ord('R'))  # Send 'R' to Keypad
-
-                    if auth == 1:
-                        send_to_slave(slave_address, ord('1'))  # Send '1' to Keypad
-                        print(f"Auth is 1, sent '1' to Keypad.")
-
-                    if auth == 2 and beep == 0:
-                        beep = 1
-                        print("Auth reached 2, sending 'E' to Keypad.")
-                        send_to_slave(slave_address, ord('E'))  # Send 'E' to Keypad
+                        # Reset button function
+                        elif received_data == ord('R'):
+                            print(f"Received 'R' from {name} (address {hex(slave_address)})")
+                            print("Resetting box")
+                            rsend = 0
+                            auth = 0
+                            rf_auth = 0
+                            keypad_auth = 0
+                            beep1 = 0
+                            beep2 = 0
+                            finger_auth = 0 
+                            # Send 'R' to all devices
+                            for _, addr in slave_addresses.items():
+                                send_to_slave(addr, ord('R'))
 
         time.sleep(0.1)  # Short delay to prevent rapid polling
 
