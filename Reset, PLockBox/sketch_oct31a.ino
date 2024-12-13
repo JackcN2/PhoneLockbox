@@ -1,110 +1,90 @@
 #include <Wire.h>
-#define device_address 0x10
-#define signal_pin 13
 
-byte button = 8;
-unsigned long startTime;
-unsigned long endTime;
-unsigned long duration;
-int reset = 0;
-byte timerRunning = 0;
-const int buzzer = 3; // buzzer to Arduino pin 3
+#define DEVICE_ADDRESS 0x14 // I2C address
+#define SIGNAL_PIN 13
+#define BUTTON1_PIN 8 // Button 1 for Reset (R)
+#define BUTTON2_PIN 9 // Button 2 for Emergency Open (V)
+#define LED1_PIN 7    // LED 1
+#define LED2_PIN 6    // LED 2
+#define BUZZER_PIN 3  // Buzzer pin
 
-char receivedData; // Stores data received from I2C master
+int resetFlag = 0;
+char receivedData;   // Variable to store received data
+char dataBuffer;     // Buffer to hold data to send to the master
 
 void setup() {
-  pinMode(signal_pin, OUTPUT);
-  digitalWrite(signal_pin, LOW);
+  pinMode(SIGNAL_PIN, OUTPUT);
+  pinMode(BUTTON1_PIN, INPUT_PULLUP);  // Button 1 (R)
+  pinMode(BUTTON2_PIN, INPUT_PULLUP);  // Button 2 (Emergency Open)
+  pinMode(LED1_PIN, OUTPUT);           // LED1 is on pin 7
+  pinMode(LED2_PIN, OUTPUT);           // LED2 is on pin 6
+  pinMode(BUZZER_PIN, OUTPUT);         // Buzzer pin
 
-  for (int i = 0; i < 4; i++) { // Use a for loop to avoid initiating pins manually
-    pinMode(i, OUTPUT);
-  }
-
-  pinMode(button, INPUT_PULLUP);
-  pinMode(7, OUTPUT);
-  pinMode(6, OUTPUT);
-
-  Wire.begin(device_address); // Initialize as I2C slave with address 0x10
-  Wire.onReceive(receiveEvent); // Define function to handle incoming data
+  Wire.begin(DEVICE_ADDRESS); // Initialize as I2C slave with address 0x14
+  Wire.onRequest(sendData);   // Handle data request from the master
 }
 
 void loop() {
-  delay(1150); // Short delay to prevent program overload
+  delay(1150); // Prevent overload
 
-  // Process received data
-  if (receivedData == '1') {
-    digitalWrite(7, HIGH);  // Turn on LED
-    tone(buzzer, 1000);     // Send 1kHz sound signal
-    delay(1000);
-    noTone(buzzer);
-  } else if (receivedData == '2') {
-    digitalWrite(7, HIGH);
-    digitalWrite(6, HIGH);
-    tone(buzzer, 2000);     // Send 2kHz sound signal
-    delay(1000);
-    noTone(buzzer);
+  // Button 1 (R) - Reset: Send "R" over I2C
+  if (digitalRead(BUTTON1_PIN) == LOW) {
+    dataBuffer = 'R';          // Store "R" in buffer for reset command
+    digitalWrite(SIGNAL_PIN, HIGH); // Trigger signal pin
+    resetLEDs();               // Reset LEDs
+    delay(500); // Debounce delay
   }
 
-  if (reset == 2) {
-    digitalWrite(7, LOW);  // Turn off LEDs
-    digitalWrite(6, LOW);
-    reset = 1;
+  // Button 2 (Emergency Open) - Send "V" over I2C, turn on both LEDs, and trigger buzzer sequence
+  if (digitalRead(BUTTON2_PIN) == LOW) {
+    dataBuffer = 'V';          // Store "V" in buffer for emergency open command
+    digitalWrite(SIGNAL_PIN, HIGH); // Trigger signal pin
+    digitalWrite(LED1_PIN, HIGH); // Turn on LED1
+    digitalWrite(LED2_PIN, HIGH); // Turn on LED2
+    longBeepSequence();        // Trigger long beep sequence
+    delay(500); // Debounce delay
   }
-
-  if (timerRunning == 0 && digitalRead(button) == LOW) { // Button pressed, start timer
-    startTime = millis();
-    timerRunning = 1;
-  }
-  if (timerRunning == 1 && digitalRead(button) == HIGH) { // Button released, stop timer
-    endTime = millis();
-    timerRunning = 0;
-    duration = endTime - startTime;
-
-    if (duration > 25 && duration < 3000) {
-      reset = 2;
-      Wire.beginTransmission(device_address);
-      Wire.write("R"); // Send "R" to master
-      Wire.endTransmission();
-    }
-    if (duration > 3000) {
-      Wire.beginTransmission(device_address);
-      Wire.write("E"); // Send "E" to master
-      Wire.endTransmission();
-
-      // Long beep sequence
-      tone(buzzer, 1396.91);
-      delay(1200);
-      tone(buzzer, 1046.50);
-      delay(1200);
-      tone(buzzer, 1396.91);
-      delay(1200);
-      tone(buzzer, 1567.98);
-      delay(1200);
-      tone(buzzer, 1661.22);
-      delay(1200);
-      tone(buzzer, 1567.98);
-      delay(1200);
-      tone(buzzer, 1396.91);
-      delay(1200);
-      tone(buzzer, 1108.73);
-      delay(1200);
-      tone(buzzer, 1046.50);
-      delay(3000);
-      tone(buzzer, 1400);
-      delay(300);
-      tone(buzzer, 1100);
-      delay(300);
-      tone(buzzer, 1400);
-      delay(300);
-      tone(buzzer, 400);
-      noTone(buzzer);
-    }
-  }
+  
+  // Reset signal pin to LOW after processing
+  digitalWrite(SIGNAL_PIN, LOW);
 }
 
-// Function to handle incoming data from I2C master
-void receiveEvent(int bytes) {
-  while (Wire.available()) {
-    receivedData = Wire.read(); // Read received byte
-  }
+void resetLEDs() {
+  digitalWrite(LED1_PIN, LOW);  // Turn off LED1
+  digitalWrite(LED2_PIN, LOW);  // Turn off LED2
+}
+
+void sendData() {
+  Wire.write(dataBuffer);  // Send data stored in buffer to the master
+}
+
+void longBeepSequence() {
+  tone(BUZZER_PIN, 1396.91);   // 1st tone
+  delay(1200);
+  tone(BUZZER_PIN, 1046.50);   // 2nd tone
+  delay(1200);
+  tone(BUZZER_PIN, 1396.91);   // 3rd tone
+  delay(1200);
+  tone(BUZZER_PIN, 1567.98);   // 4th tone
+  delay(1200);
+  tone(BUZZER_PIN, 1661.22);   // 5th tone
+  delay(1200);
+  tone(BUZZER_PIN, 1567.98);   // 6th tone
+  delay(1200);
+  tone(BUZZER_PIN, 1396.91);   // 7th tone
+  delay(1200);
+  tone(BUZZER_PIN, 1108.73);   // 8th tone
+  delay(1200);
+  tone(BUZZER_PIN, 1046.50);   // 9th tone
+  delay(3000); // Long delay before the next tones
+  
+  // Short sequence to end the sound
+  tone(BUZZER_PIN, 1400);       // Final tone 1
+  delay(300);
+  tone(BUZZER_PIN, 1100);       // Final tone 2
+  delay(300);
+  tone(BUZZER_PIN, 1400);       // Final tone 3
+  delay(300);
+  tone(BUZZER_PIN, 400);        // Short tone
+  noTone(BUZZER_PIN);           // Stop the buzzer
 }
