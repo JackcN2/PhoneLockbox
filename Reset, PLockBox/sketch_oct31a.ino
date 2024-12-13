@@ -10,7 +10,7 @@
 
 int resetFlag = 0;
 char receivedData;   // Variable to store received data
-char dataBuffer;     // Buffer to hold data to send to the master
+char dataBuffer = 0; // Buffer to hold data to send to the master
 
 void setup() {
   pinMode(SIGNAL_PIN, OUTPUT);
@@ -21,7 +21,8 @@ void setup() {
   pinMode(BUZZER_PIN, OUTPUT);         // Buzzer pin
 
   Wire.begin(DEVICE_ADDRESS); // Initialize as I2C slave with address 0x14
-  Wire.onRequest(sendData);   // Handle data request from the master
+  Wire.onReceive(receiveEvent);   // Handle data received from master
+  Wire.onRequest(sendData);      // Handle data request from master
 }
 
 void loop() {
@@ -49,6 +50,25 @@ void loop() {
   digitalWrite(SIGNAL_PIN, LOW);
 }
 
+// This function is called when data is received from the master
+void receiveEvent(int bytes) {
+  while (Wire.available()) {
+    receivedData = Wire.read();  // Store the received data
+  }
+
+  // Perform actions based on received data
+  if (receivedData == '1') {
+    digitalWrite(LED1_PIN, HIGH);  // Turn on LED1
+    digitalWrite(LED2_PIN, LOW);   // Ensure LED2 is off
+    beep(1000);                    // 1000 Hz tone for beep
+  } 
+  else if (receivedData == '2') {
+    digitalWrite(LED1_PIN, LOW);   // Ensure LED1 is off
+    digitalWrite(LED2_PIN, HIGH);  // Turn on LED2
+    beep(2000);                    // 2000 Hz tone for beep
+  }
+}
+
 void resetLEDs() {
   digitalWrite(LED1_PIN, LOW);  // Turn off LED1
   digitalWrite(LED2_PIN, LOW);  // Turn off LED2
@@ -56,6 +76,13 @@ void resetLEDs() {
 
 void sendData() {
   Wire.write(dataBuffer);  // Send data stored in buffer to the master
+  dataBuffer = 0;          // Clear the dataBuffer after sending
+}
+
+void beep(int frequency) {
+  tone(BUZZER_PIN, frequency);   // Play the beep with the given frequency
+  delay(1000);                   // Beep for 1 second
+  noTone(BUZZER_PIN);            // Stop the beep
 }
 
 void longBeepSequence() {
