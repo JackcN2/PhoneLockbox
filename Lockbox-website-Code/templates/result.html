@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Result</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='password_result_styles.css') }}">
+</head>
+<body class="dark-theme">
+    <div class="form-container">
+        <h1 class="{{ message_class }}">{{ message }}</h1>
+        <a href="{{ url_for('home') }}">
+            <button>Go Back</button>
+        </a>
+    </div>
+</body>
+</html>

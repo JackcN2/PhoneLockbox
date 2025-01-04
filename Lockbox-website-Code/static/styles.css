@@ -1,0 +1,137 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    transition: background-color 0.3s, color 0.3s;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+    animation: fadeIn 1s ease-out;
+}
+
+.dark-theme {
+    background: linear-gradient(135deg, #6a1b9a, #2196f3); /* Dark gradient */
+    color: #E0E0E0;
+}
+
+@keyframes fadeIn {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+h1 {
+    color: inherit;
+    text-align: center;
+    font-size: 1.5rem; /* Adjusted to make the text smaller */
+    margin-bottom: 20px;
+    overflow: hidden; /* Prevents reflowing of the text */
+    white-space: nowrap; /* Keeps the text on a single line */
+    width: 0; /* Initially hides the text */
+    animation: type 3s steps(30) 1 forwards; /* Typewriter effect */
+}
+
+@keyframes type {
+    0% {
+        width: 0; /* Start hidden */
+    }
+    100% {
+        width: 100%; /* Reveal text gradually */
+    }
+}
+
+form {
+    background-color: #1E1E1E;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 350px;
+    max-width: 100%; /* Ensures it doesn't exceed the available space */
+    transition: all 0.3s ease;
+    margin: 0 auto; /* Center the form horizontally */
+}
+
+form:hover {
+    transform: scale(1.05);
+}
+
+label {
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+    color: #B0B0B0;
+    width: 100%; /* Ensures label takes full width */
+    text-align: left; /* Align label text to the left */
+}
+
+.password-container {
+    position: relative;
+    width: 100%;
+}
+
+input[type="password"], input[type="text"] {
+    padding: 12px;
+    margin-bottom: 20px;
+    width: 100%;
+    border: 2px solid #333;
+    border-radius: 6px;
+    background-color: #333;
+    color: #fff;
+    font-size: 1rem;
+    box-sizing: border-box; /* Ensures padding is included in the width */
+    transition: border-color 0.3s, background-color 0.3s, box-shadow 0.3s ease;
+}
+
+input[type="password"]:focus, input[type="text"]:focus {
+    border-color: #4CAF50;
+    background-color: #444;
+    outline: none;
+    box-shadow: 0 0 10px #4CAF50;
+}
+
+button {
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #fff;
+    background-color: #4CAF50;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s ease, box-shadow 0.3s ease;
+    width: 100%;
+}
+
+button:hover {
+    background-color: #45a049;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+}
+
+button:active {
+    transform: translateY(1px);
+}
+
+button:focus {
+    outline: none;
+}
+
+.password-container i {
+    position: absolute;
+    top: -30px; /* Move the icon higher */
+    right: 10px;
+    transform: translateY(0%);
+    color: #B0B0B0;
+    cursor: pointer;
+    font-size: 1.5rem;
+    transition: color 0.3s ease;
+}
+
+.password-container i:hover {
+    color: #4CAF50;
+}

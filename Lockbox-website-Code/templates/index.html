@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enter the password for your lockbox</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <!-- Add Font Awesome for the eye icon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+</head>
+<body class="dark-theme"> <!-- Default theme is dark -->
+
+    <form method="post">
+        <h1>Enter your lockbox password:</h1>
+        <label for="password">Password:</label>
+        <div class="password-container">
+            <input type="password" name="password" id="password" required>
+            <!-- Eye icon -->
+            <i class="fas fa-eye-slash" id="toggle-password-visibility"></i>
+        </div>
+        <button type="submit">Submit</button>
+    </form>
+
+    <script>
+        // Password visibility toggle functionality
+        const passwordField = document.getElementById('password');
+        const togglePasswordButton = document.getElementById('toggle-password-visibility');
+        let isPasswordVisible = false;
+
+        togglePasswordButton.addEventListener('click', () => {
+            isPasswordVisible = !isPasswordVisible;
+            if (isPasswordVisible) {
+                passwordField.type = 'text';
+                togglePasswordButton.classList.remove('fa-eye-slash');
+                togglePasswordButton.classList.add('fa-eye');
+            } else {
+                passwordField.type = 'password';
+                togglePasswordButton.classList.remove('fa-eye');
+                togglePasswordButton.classList.add('fa-eye-slash');
+            }
+        });
+    </script>
+</body>
+</html>
