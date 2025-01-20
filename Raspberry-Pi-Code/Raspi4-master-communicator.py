@@ -2,7 +2,7 @@ import smbus2
 import threading
 import time
 import RPi.GPIO as GPIO
-import pyserial
+import os
 print("Program started")
 
 # Global variables to track authentication and states
@@ -11,8 +11,10 @@ keypad_auth = 0  # To track keypad authentication
 rf_auth = 0  # To track RF authentication
 finger_auth = 0 # For fingerprint auth
 auth_lock = threading.Lock()  # Lock to safely update shared variables across threads
-beep = 0
+beep1 = 0
+beep2 = 0
 rsend = 0
+web_auth = 0
 
 # I2C setup
 I2C_BUS = 1  # I2C bus number (typically 1 on Raspberry Pi)
@@ -66,6 +68,17 @@ def poll_slave_when_gpio_high():
             send_to_slave(slave_addresses["Keypad"], ord('E'))  # Opens the box
 
         with auth_lock:
+            with open('webauth', 'r') as file:
+                first_char = file.read(1)
+                if first_char == "1":
+                    if web_auth == 0:
+                        auth += 1
+                        web_auth = 1
+                    with open('webauth', "r+") as file:
+                        file.seek(0)  # Go to the beginning of the file
+                        file.write("0")
+                        file.truncate()  # Ensure only "1" remains in the file
+                    
             if GPIO.input(23) == GPIO.HIGH:
                 if finger_auth == 0:
                     finger_auth = 1
@@ -106,7 +119,8 @@ def poll_slave_when_gpio_high():
                             keypad_auth = 0
                             beep1 = 0
                             beep2 = 0
-                            finger_auth = 0 
+                            finger_auth = 0
+                            web_auth = 0
                             # Send 'R' to all devices
                             for _, addr in slave_addresses.items():
                                 send_to_slave(addr, ord('R'))
